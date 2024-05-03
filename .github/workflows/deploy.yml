@@ -1,0 +1,36 @@
+name: Deploy Master Branch
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20"
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload to AWS S3
+        uses: shallwefootball/s3-upload-action@master
+        with:
+          aws_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws_bucket: ${{ secrets.AWS_BUCKET }}
+          source_dir: "dist"
+          destination_dir: "react/${{ github.sha }}"
+
+      - name: Notify API
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d '{"component": "@mfe/react", "path": "${{secrets.URL_S3}}/react/${{ github.sha }}/mfe-newApp.js"}' ${{ secrets.URL_LAMBDA }}
